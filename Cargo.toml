@@ -3,7 +3,10 @@ name = "monkey-d-tcp"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
+[workspace]
+members = ["crates/*"]
+
+[workspace.dependencies]
 tokio = { version = "1.48.0", features = ["full"] }
 thiserror = "2.0.17"
 tokio-util = { version = "0.7.17", features = ["codec"] }
