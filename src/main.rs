@@ -4,6 +4,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     select,
+    task::JoinSet,
     time::sleep,
 };
 use tokio_util::sync::CancellationToken;
@@ -18,6 +19,7 @@ async fn run_server(
     output_ip: &str,
     src_ip: &str,
     graceful_token: &CancellationToken,
+    tasks_set: &mut JoinSet<()>,
 ) -> Result<(), AppError> {
     let input_listener = TcpListener::bind(src_ip).await?;
 
@@ -38,7 +40,7 @@ async fn run_server(
         let read_graceful_token = graceful_token.clone();
         let write_graceful_token = graceful_token.clone();
 
-        tokio::spawn(async move {
+        tasks_set.spawn(async move {
             loop {
                 let mut buf = [0u8; 1024];
                 select! {
@@ -63,7 +65,7 @@ async fn run_server(
             }
         });
 
-        tokio::spawn(async move {
+        tasks_set.spawn(async move {
             loop {
                 let mut buf = [0u8; 1024];
                 select! {
@@ -95,16 +97,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_ip = "127.0.0.1:8080";
     let src_ip = "127.0.0.1:8081";
     let graceful_token = CancellationToken::new();
+    let mut server_tasks_set = JoinSet::new();
 
     select! {
-        _ = run_server(output_ip, src_ip, &graceful_token) => {},
+        _ = run_server(output_ip, src_ip, &graceful_token, &mut server_tasks_set) => {},
         _ = tokio::signal::ctrl_c() => {
             graceful_token.cancel();
-            let graceful_period = Duration::from_secs(1);
+            println!("Started gracefully stopping...");
+            let force_handle = tokio::spawn(async move {
+                let graceful_period = Duration::from_secs(60);
+                sleep(graceful_period).await;
+                println!("Force exiting...");
+                std::process::exit(0);
+            });
 
-            sleep(graceful_period).await;
-            println!("Exiting...");
-            std::process::exit(0);
+            server_tasks_set.join_all().await;
+            println!("Gracefully stopped");
+            force_handle.abort();
         },
     };
 
