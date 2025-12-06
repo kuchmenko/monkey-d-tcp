@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1.48.0", features = ["full"] }
 thiserror = "2.0.17"
+tokio-util = { version = "0.7.17", features = ["codec"] }
+ctrlc = { version = "3.4.7", features = ["termination"] }
