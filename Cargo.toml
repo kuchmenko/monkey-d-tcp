@@ -1,0 +1,8 @@
+[package]
+name = "monkey-d-tcp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+thiserror = "2.0.17"
