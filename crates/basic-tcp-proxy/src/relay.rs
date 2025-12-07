@@ -35,7 +35,6 @@ async fn accept_connection(
     let upstream_tx = metrics_tx.clone();
     let downstream_tx = metrics_tx;
 
-    // Upstream relay: client -> target
     tasks_set.spawn(async move {
         loop {
             let mut buf = [0u8; 1024];
@@ -64,11 +63,9 @@ async fn accept_connection(
                 }
             }
         }
-        // Only upstream task sends ConnectionClosed to avoid double-decrement
         let _ = upstream_tx.send(MetricEvent::ConnectionClosed(client_addr)).await;
     });
 
-    // Downstream relay: target -> client
     tasks_set.spawn(async move {
         loop {
             let mut buf = [0u8; 1024];

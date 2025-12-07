@@ -85,14 +85,14 @@ impl MetricsCollector {
 
     pub async fn run(mut self) {
         let mut log_timer = interval(self.log_interval);
-        log_timer.tick().await; // Skip first immediate tick
+        log_timer.tick().await;
 
         loop {
             select! {
                 event = self.rx.recv() => {
                     match event {
                         Some(e) => self.handle_event(e),
-                        None => break, // Channel closed
+                        None => break,
                     }
                 }
                 _ = log_timer.tick() => {

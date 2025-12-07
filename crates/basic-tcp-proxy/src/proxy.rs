@@ -81,7 +81,6 @@ impl Proxy {
         println!("Press Ctrl+C to shutdown gracefully");
         println!("========================================\n");
 
-        // Start the metrics collector
         let collector = self.collector.take().expect("collector already started");
         let collector_handle = tokio::spawn(collector.run());
 
@@ -135,17 +134,9 @@ impl Proxy {
 
         let force_handle = Self::start_force_timeout_task();
 
-        // Wait for all relay tasks to finish
         tasks_set.join_all().await;
-
-        // Stop HTTP server
         http_server.await??;
-
-        // Drop our sender so collector can finish
-        // (other senders are already dropped when tasks finished)
         drop(self.metrics_tx.take());
-
-        // Wait for collector to process remaining events
         collector_handle.await?;
 
         let final_snapshot = self.metrics_rx.borrow().clone();
