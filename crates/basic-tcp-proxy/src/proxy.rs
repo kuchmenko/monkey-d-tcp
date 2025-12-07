@@ -93,7 +93,7 @@ impl Proxy {
             },
             _ = tokio::signal::ctrl_c() => {
             println!("\n[SHUTDOWN] Received Ctrl+C, starting graceful shutdown...");
-                self.shutdown().await;
+                self.shutdown();
             },
 
         };
@@ -101,7 +101,7 @@ impl Proxy {
         Ok(())
     }
 
-    pub async fn shutdown(&mut self) {
+    pub fn shutdown(&mut self) {
         self.shutdown_token.cancel();
     }
 
@@ -117,7 +117,7 @@ impl Proxy {
         let active = self.metrics.active_connections.load(Ordering::Relaxed);
         println!("[SHUTDOWN] Waiting for {} active connection(s)...", active);
 
-        let force_handle = self.start_force_timeout_task().await;
+        let force_handle = Self::start_force_timeout_task();
 
         tasks_set.join_all().await;
         http_server.await??;
@@ -142,7 +142,7 @@ impl Proxy {
         Ok(())
     }
 
-    async fn start_force_timeout_task(&mut self) -> JoinHandle<()> {
+    fn start_force_timeout_task() -> JoinHandle<()> {
         tokio::spawn(async move {
             let graceful_period = Duration::from_secs(60);
             sleep(graceful_period).await;

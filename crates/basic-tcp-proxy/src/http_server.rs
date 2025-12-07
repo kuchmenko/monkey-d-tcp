@@ -20,9 +20,9 @@ pub struct MetricsResponse {
     pub bytes_downstream: u64,
 }
 
-async fn handle_http_request(
-    req: Request<hyper::body::Incoming>,
-    metrics: Arc<Metrics>,
+fn handle_http_request(
+    req: &Request<hyper::body::Incoming>,
+    metrics: &Arc<Metrics>,
 ) -> Result<Response<Full<Bytes>>, AppError> {
     match (req.method(), req.uri().path()) {
         (&hyper::Method::GET, "/") => {
@@ -72,7 +72,7 @@ pub async fn http_server(
 
                 let service = service_fn(move |req| {
                     let metrics = metrics.clone();
-                    async move { handle_http_request(req, metrics).await }
+                    async move { handle_http_request(&req, &metrics) }
                 });
 
             tokio::spawn(async move {
