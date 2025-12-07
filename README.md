@@ -11,9 +11,9 @@
               STRETCHING TCP SINCE 2025
 ```
 
-[![CI](https://github.com/user/monkey-d-tcp/actions/workflows/ci.yml/badge.svg)](https://github.com/user/monkey-d-tcp/actions/workflows/ci.yml)
+[![CI](https://github.com/kuchmenko/monkey-d-tcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kuchmenko/monkey-d-tcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.85+-orange.svg)](https://www.rust-lang.org)
 
 > _"I'm gonna be King of the Proxies!"_ — Monkey D. TCP
 
@@ -82,14 +82,60 @@ just test
 just quality
 ```
 
+## Configuration
+
+Create a `proxy.toml` file:
+
+```toml
+# Proxy listen address
+listen_addr = "127.0.0.1:3000"
+
+# Target to forward connections to
+target_addr = "127.0.0.1:8081"
+
+# HTTP metrics endpoint
+metrics_addr = "127.0.0.1:9090"
+
+# Graceful shutdown timeout (seconds)
+grace_period_secs = 30
+
+# Metrics logging interval (seconds)
+metrics_log_interval_secs = 10
+
+# Channel buffer size for metrics events
+channel_buffer_size = 1000
+```
+
 ## Usage
 
+### From TOML config
+
 ```rust
-use basic_tcp_proxy::Proxy;
+use basic_tcp_proxy::{Config, Proxy};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (mut proxy, addr) = Proxy::bind("127.0.0.1:8080", "example.com:80").await?;
+    let config = Config::from_file("proxy.toml")?;
+    let (mut proxy, addr) = Proxy::new(config).await?;
+    println!("Proxy listening on {}", addr);
+    proxy.run().await?;
+    Ok(())
+}
+```
+
+### Programmatic config
+
+```rust
+use basic_tcp_proxy::{Config, Proxy};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config {
+        listen_addr: "127.0.0.1:8080".to_string(),
+        target_addr: "example.com:80".to_string(),
+        ..Config::default()
+    };
+    let (mut proxy, addr) = Proxy::new(config).await?;
     println!("Proxy listening on {}", addr);
     proxy.run().await?;
     Ok(())
@@ -102,10 +148,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```bash
 # Plain text (default)
-curl http://localhost:8998/metrics
+curl http://localhost:9090/metrics
 
 # JSON
-curl http://localhost:8998/metrics?format=json
+curl http://localhost:9090/metrics?format=json
 ```
 
 **Plain text output:**
@@ -151,12 +197,13 @@ bytes_downstream 2097152
 crates/
 ├── basic-tcp-proxy/     # Main proxy implementation
 │   ├── src/
+│   │   ├── config.rs    # TOML configuration
 │   │   ├── proxy.rs     # Proxy struct and lifecycle
 │   │   ├── relay.rs     # Bidirectional TCP relay
 │   │   ├── metrics.rs   # MetricsCollector and events
 │   │   └── http_server.rs
-│   └── tests/
-│       └── proxy_test.rs
+│   ├── tests/
+│   │   └── proxy_test.rs
 ├── echo-server/         # Simple echo server for testing
 ├── load-balancer/       # (WIP)
 └── load-tester/         # (WIP)
@@ -174,7 +221,7 @@ just fix          # Auto-fix issues
 
 ## Requirements
 
-- Rust 1.75+
+- Rust 1.85+ (edition 2024)
 - Tokio runtime
 
 ## License
