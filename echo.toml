@@ -1,0 +1,4 @@
+# Echo Server Configuration
+
+# Address to listen for incoming connections
+listen_addr = "127.0.0.1:8081"

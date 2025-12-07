@@ -1,3 +1,7 @@
+mod config;
+
+pub use config::{Config, ConfigError};
+
 use std::{net::SocketAddr, str::FromStr};
 
 use tokio::{

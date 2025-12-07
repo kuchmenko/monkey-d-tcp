@@ -1,0 +1,19 @@
+# Basic TCP Proxy Configuration
+
+# Address to listen for incoming connections
+listen_addr = "127.0.0.1:3000"
+
+# Target address to forward connections to
+target_addr = "127.0.0.1:8081"
+
+# HTTP metrics endpoint address
+metrics_addr = "127.0.0.1:9090"
+
+# Grace period for shutdown (seconds)
+grace_period_secs = 30
+
+# Metrics logging interval (seconds)
+metrics_log_interval_secs = 10
+
+# Channel buffer size for metrics events
+channel_buffer_size = 1000

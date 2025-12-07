@@ -1,9 +1,10 @@
+use echo_server::{Config, EchoServer};
 use tokio::select;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "127.0.0.1:8081";
-    let (server, _) = echo_server::EchoServer::bind(addr).await?;
+    let config = Config::from_file("echo.toml").unwrap_or_default();
+    let (server, _) = EchoServer::bind(&config.listen_addr).await?;
 
     println!("Listening on {}", server.get_addr()?);
     select! {

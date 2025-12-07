@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use http_body_util::Full;
 use hyper::{Request, Response, StatusCode, body::Bytes, server::conn::http1, service::service_fn};
 use hyper_util::rt::TokioIo;
@@ -58,12 +56,10 @@ fn handle_http_request(
 }
 
 pub async fn http_server(
+    listener: TcpListener,
     metrics_rx: watch::Receiver<MetricsSnapshot>,
     graceful_token: CancellationToken,
 ) -> Result<(), AppError> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8998));
-    let listener = TcpListener::bind(addr).await?;
-
     loop {
         select! {
             result = listener.accept() => {

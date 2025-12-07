@@ -9,7 +9,7 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{MetricEvent, MetricsCollector, MetricsSnapshot, http_server, run_server};
+use crate::{Config, MetricEvent, MetricsCollector, MetricsSnapshot, http_server, run_server};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -28,7 +28,7 @@ pub enum AppError {
     #[error("IO error: {0}")]
     TaskJoin(#[from] tokio::task::JoinError),
 
-    #[error("Failded to parse address: {0}")]
+    #[error("Failed to parse address: {0}")]
     Parse(#[from] std::net::AddrParseError),
 
     #[error("Unexpected error: {0}")]
@@ -36,10 +36,11 @@ pub enum AppError {
 }
 
 pub struct Proxy {
-    src_ip: String,
-    output_ip: String,
+    config: Config,
     src_listener: TcpListener,
-    metrics_addr: String,
+    local_addr: SocketAddr,
+    metrics_listener: Option<TcpListener>,
+    metrics_addr: SocketAddr,
     shutdown_token: CancellationToken,
     metrics_tx: Option<mpsc::Sender<MetricEvent>>,
     metrics_rx: watch::Receiver<MetricsSnapshot>,
@@ -47,21 +48,29 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    pub async fn bind(src_ip: &str, output_ip: &str) -> Result<(Self, SocketAddr), AppError> {
-        let src_listener = TcpListener::bind(src_ip.parse::<SocketAddr>()?).await?;
+    pub async fn new(config: Config) -> Result<(Self, SocketAddr), AppError> {
+        let src_listener = TcpListener::bind(config.listen_addr.parse::<SocketAddr>()?).await?;
         let local_addr = src_listener.local_addr()?;
 
-        let (collector, metrics_tx, metrics_rx) = MetricsCollector::new(1000);
+        let metrics_listener =
+            TcpListener::bind(config.metrics_addr.parse::<SocketAddr>()?).await?;
+        let metrics_addr = metrics_listener.local_addr()?;
+
+        let (collector, metrics_tx, metrics_rx) = MetricsCollector::new(
+            config.channel_buffer_size,
+            Duration::from_secs(config.metrics_log_interval_secs),
+        );
 
         let proxy = Self {
-            src_ip: src_ip.parse::<SocketAddr>()?.to_string(),
-            output_ip: output_ip.to_string(),
-            metrics_addr: "127.0.0.1:8998".to_string(),
+            config,
+            src_listener,
+            local_addr,
+            metrics_listener: Some(metrics_listener),
+            metrics_addr,
             shutdown_token: CancellationToken::new(),
             metrics_tx: Some(metrics_tx),
             metrics_rx,
             collector: Some(collector),
-            src_listener,
         };
 
         Ok((proxy, local_addr))
@@ -71,8 +80,8 @@ impl Proxy {
         println!("========================================");
         println!("       basic-tcp-proxy starting");
         println!("========================================");
-        println!("Proxy listening on:    {}", self.src_ip);
-        println!("Forwarding to:         {}", self.output_ip);
+        println!("Proxy listening on:    {}", self.local_addr);
+        println!("Forwarding to:         {}", self.config.target_addr);
         println!(
             "Metrics endpoint:      http://{}/metrics",
             self.metrics_addr
@@ -84,7 +93,12 @@ impl Proxy {
         let collector = self.collector.take().expect("collector already started");
         let collector_handle = tokio::spawn(collector.run());
 
+        let metrics_listener = self
+            .metrics_listener
+            .take()
+            .expect("metrics_listener already taken");
         let http_server = tokio::spawn(http_server(
+            metrics_listener,
             self.metrics_rx.clone(),
             self.shutdown_token.clone(),
         ));
@@ -95,7 +109,7 @@ impl Proxy {
         select! {
             _ = run_server(
                 &self.src_listener,
-                &self.output_ip,
+                &self.config.target_addr,
                 &self.shutdown_token,
                 &mut tasks_set,
                 metrics_tx,
@@ -132,7 +146,8 @@ impl Proxy {
         let active = self.metrics_rx.borrow().active_connections;
         println!("[SHUTDOWN] Waiting for {} active connection(s)...", active);
 
-        let force_handle = Self::start_force_timeout_task();
+        let grace_period = Duration::from_secs(self.config.grace_period_secs);
+        let force_handle = Self::start_force_timeout_task(grace_period);
 
         tasks_set.join_all().await;
         http_server.await??;
@@ -153,10 +168,9 @@ impl Proxy {
         Ok(())
     }
 
-    fn start_force_timeout_task() -> JoinHandle<()> {
+    fn start_force_timeout_task(grace_period: Duration) -> JoinHandle<()> {
         tokio::spawn(async move {
-            let graceful_period = Duration::from_secs(60);
-            sleep(graceful_period).await;
+            sleep(grace_period).await;
             println!("[SHUTDOWN] Grace period expired, force exiting...");
             std::process::exit(0);
         })

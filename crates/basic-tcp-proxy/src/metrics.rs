@@ -65,6 +65,7 @@ pub struct MetricsCollector {
 impl MetricsCollector {
     pub fn new(
         buffer_size: usize,
+        log_interval: Duration,
     ) -> (
         Self,
         mpsc::Sender<MetricEvent>,
@@ -77,7 +78,7 @@ impl MetricsCollector {
             rx: event_rx,
             watch_tx,
             state: MetricsSnapshot::default(),
-            log_interval: Duration::from_secs(10),
+            log_interval,
         };
 
         (collector, event_tx, watch_rx)

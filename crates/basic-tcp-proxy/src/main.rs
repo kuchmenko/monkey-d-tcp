@@ -1,11 +1,10 @@
-use basic_tcp_proxy::Proxy;
+use basic_tcp_proxy::{Config, Proxy};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let src_ip = "127.0.0.1:8080";
-    let output_ip = "127.0.0.1:8081";
+    let config = Config::from_file("proxy.toml").unwrap_or_default();
 
-    let (mut proxy, _) = Proxy::bind(src_ip, output_ip).await?;
+    let (mut proxy, _) = Proxy::new(config).await?;
     proxy.run().await?;
 
     Ok(())

@@ -1,4 +1,4 @@
-use basic_tcp_proxy::Proxy;
+use basic_tcp_proxy::{Config, Proxy};
 use echo_server::EchoServer;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -9,9 +9,13 @@ async fn test_proxy() {
         echo_server.run().await.unwrap();
     });
 
-    let (mut proxy_server, proxy_addr) = Proxy::bind("127.0.0.1:0", &echo_addr.to_string())
-        .await
-        .unwrap();
+    let config = Config {
+        listen_addr: "127.0.0.1:0".to_string(),
+        target_addr: echo_addr.to_string(),
+        ..Config::default()
+    };
+
+    let (mut proxy_server, proxy_addr) = Proxy::new(config).await.unwrap();
     let metrics_rx = proxy_server.metrics();
 
     let proxy_server_handle = tokio::spawn(async move {
