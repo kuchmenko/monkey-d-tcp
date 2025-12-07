@@ -12,7 +12,7 @@ async fn test_proxy() {
     let (mut proxy_server, proxy_addr) = Proxy::bind("127.0.0.1:0", &echo_addr.to_string())
         .await
         .unwrap();
-    let proxy_metrics = proxy_server.metrics().clone();
+    let metrics_rx = proxy_server.metrics();
 
     let proxy_server_handle = tokio::spawn(async move {
         proxy_server.run().await.unwrap();
@@ -24,40 +24,23 @@ async fn test_proxy() {
     let test_data = b"test data";
 
     proxy_stream.write_all(test_data).await.unwrap();
-    let mut responce = vec![0u8; test_data.len()];
+    let mut response = vec![0u8; test_data.len()];
 
-    proxy_stream.read_exact(&mut responce).await.unwrap();
+    proxy_stream.read_exact(&mut response).await.unwrap();
 
-    assert_eq!(Vec::from(test_data), responce);
+    assert_eq!(Vec::from(test_data), response);
 
     proxy_stream.shutdown().await.unwrap();
     echo_server_handle.abort();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    println!("Proxy metrics: {:?}", proxy_metrics);
+    let snapshot = metrics_rx.borrow();
+    println!("Proxy metrics: {:?}", *snapshot);
 
-    assert_eq!(
-        proxy_metrics
-            .total_connections
-            .load(std::sync::atomic::Ordering::Relaxed),
-        1
-    );
-    // Note: active_connections cleanup is async and depends on how
-    // connection termination propagates through relay tasks.
-    // Skipping this assertion as it's timing-dependent.
-    assert_eq!(
-        proxy_metrics
-            .bytes_upstream
-            .load(std::sync::atomic::Ordering::Relaxed),
-        test_data.len() as u64,
-    );
-    assert_eq!(
-        proxy_metrics
-            .bytes_downstream
-            .load(std::sync::atomic::Ordering::Relaxed),
-        test_data.len() as u64,
-    );
+    assert_eq!(snapshot.total_connections, 1);
+    assert_eq!(snapshot.bytes_upstream, test_data.len() as u64);
+    assert_eq!(snapshot.bytes_downstream, test_data.len() as u64);
 
     proxy_server_handle.abort();
 }
