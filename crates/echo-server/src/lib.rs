@@ -8,8 +8,8 @@ use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EchoServerError {
-    #[error("Socket error: {0}")]
-    SocketError(#[from] std::io::Error),
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 
     #[error("Invalid address: {0}")]
     InvalidAddress(#[from] std::net::AddrParseError),
@@ -26,10 +26,11 @@ impl EchoServer {
         let addr = SocketAddr::from_str(addr)?;
         let listener = tokio::net::TcpListener::bind(addr).await?;
         let shutdown = CancellationToken::new();
-        Ok((EchoServer { listener, shutdown }, addr))
+        let local_addr = listener.local_addr()?;
+        Ok((EchoServer { listener, shutdown }, local_addr))
     }
 
-    pub async fn run(self) -> Result<(), EchoServerError> {
+    pub async fn run(&self) -> Result<(), EchoServerError> {
         let mut task_join_set = tokio::task::JoinSet::new();
 
         loop {
@@ -65,5 +66,9 @@ impl EchoServer {
 
     pub fn shutdown(&self) {
         self.shutdown.cancel();
+    }
+
+    pub fn get_addr(&self) -> Result<SocketAddr, EchoServerError> {
+        self.listener.local_addr().map_err(EchoServerError::IoError)
     }
 }

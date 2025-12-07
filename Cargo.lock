@@ -327,6 +327,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mdt-metrics"
+version = "0.1.0"
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -342,10 +346,6 @@ dependencies = [
  "wasi",
  "windows-sys 0.61.2",
 ]
-
-[[package]]
-name = "monkey-d-tcp"
-version = "0.1.0"
 
 [[package]]
 name = "nix"

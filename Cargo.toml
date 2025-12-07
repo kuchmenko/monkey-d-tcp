@@ -1,9 +1,5 @@
-[package]
-name = "monkey-d-tcp"
-version = "0.1.0"
-edition = "2024"
-
 [workspace]
+resolver = "3"
 members = ["crates/*"]
 
 [workspace.dependencies]
