@@ -4,3 +4,5 @@ proxy:
 echo:
     cargo run -p echo-server
 
+test:
+    cargo test

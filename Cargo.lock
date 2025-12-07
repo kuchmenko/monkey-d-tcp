@@ -19,6 +19,7 @@ name = "basic-tcp-proxy"
 version = "0.1.0"
 dependencies = [
  "ctrlc",
+ "echo-server",
  "http-body-util",
  "hyper",
  "hyper-util",
