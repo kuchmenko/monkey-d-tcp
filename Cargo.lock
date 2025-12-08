@@ -320,6 +320,13 @@ version = "0.1.0"
 [[package]]
 name = "load-tester"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "toml",
+]
 
 [[package]]
 name = "lock_api"

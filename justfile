@@ -7,6 +7,9 @@ proxy:
 echo:
     cargo run -p echo-server
 
+load-test:
+    cargo run -p load-tester
+
 test:
     cargo test --workspace
 
